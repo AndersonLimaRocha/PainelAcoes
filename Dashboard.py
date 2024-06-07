@@ -12,7 +12,6 @@ st.set_page_config( page_title="Indicadores de Ações da Bolsa", layout="wide")
 st.title("Dashboard dos Indicadores da Bolsa")
 st.caption("Dashboard para acompanhamento dos indicadores das ações das Bolsa de Valores IBOVESPA")
 
-# 2. Chamar a API
 #######################################################################################################
                             ######### Carga do Dataframe ##########
 #######################################################################################################
@@ -27,10 +26,6 @@ lista = pd.DataFrame(columns=['Col'], data=lista)
 Setores = minhasacoes[['SETORECONOMICO']].drop_duplicates().reset_index().rename(columns={'SETORECONOMICO':'Col'})
 Setores = pd.concat([lista,Setores]).reset_index(drop=True).drop(columns={'index'})
 lista_setores = list(Setores['Col'])
-
-lista_empresa = minhasacoes[['ACAO']].drop_duplicates()
-
-lista_empresa = lista_empresa + '.SA'
 
 end_date = dt.datetime.today()
 
@@ -93,12 +88,36 @@ else:
 ########################################################################################################        
 
 with st.container():
-    st.header("Selecione os filtros necessários para visualizar as ações")
+    st.header("Selecione os filtros abaixo para visualizar as ações")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        ativo = st.selectbox("Selecione os ativo desejado:", options=lista_empresa)
+
+        if empresa != 'Todas':
+            lista_empresa = minhasacoes[['ACAO']][minhasacoes['EMPRESA'] == empresa].drop_duplicates()
+            lista_empresa = lista_empresa + '.SA'     
+            ativo = st.selectbox("Selecione os ativo desejado:", options=lista_empresa)            
+
+        elif segmento != 'Todos':
+            lista_empresa = minhasacoes[['ACAO']][minhasacoes['SEGMENTO'] == segmento].drop_duplicates()
+            lista_empresa = lista_empresa + '.SA'        
+            ativo = st.selectbox("Selecione os ativo desejado:", options=lista_empresa)
+
+        elif subsetor != 'Todos':
+            lista_empresa = minhasacoes[['ACAO']][minhasacoes['SUBSETOR'] == subsetor].drop_duplicates()
+            lista_empresa = lista_empresa + '.SA'        
+            ativo = st.selectbox("Selecione os ativo desejado:", options=lista_empresa)            
+
+        elif setor != 'Todos':
+            lista_empresa = minhasacoes[['ACAO']][minhasacoes['SETORECONOMICO'] == setor].drop_duplicates()
+            lista_empresa = lista_empresa + '.SA'        
+            ativo = st.selectbox("Selecione os ativo desejado:", options=lista_empresa)
+
+        else:
+            lista_empresa = minhasacoes[['ACAO']].drop_duplicates()
+            lista_empresa = lista_empresa + '.SA'
+            ativo = str(st.selectbox("Selecione os ativo desejado:", options=lista_empresa))
 
         #tratando o retorno da ação selecionada
         tkt = ativo.replace('.SA','')
@@ -113,7 +132,6 @@ with st.container():
 
     with col3:
         data_final = st.date_input("Selecione a Data final", end_date)
-
 
 df = minhasacoes[minhasacoes['ACAO'] == tkt]
 df['VALORCOMPRA'] = float(vlpago)
@@ -145,13 +163,13 @@ with st.container():
     col11, col12, col13, col14, col15 = st.columns(5)
 
     with col11:
-        st.metric(f"Valor Pago - {dtcompra} "," R$ {:,.2f}".format(vlpago))
+        st.metric(f"Valor Pago em \n {dtcompra} "," R$ {:,.2f}".format(vlpago))
 
     with col12:
         st.metric(f"Qtde de Cotas: ","{:,.0f}".format(qtdct))
 
     with col13:
-        st.metric(f"Valor da Cotação - {ult_atualizacao} "," R$ {:,.2f}".format(ult_cotacao),f"{delta}%" )
+        st.metric(f"Ultima Cotação \n {ult_atualizacao} "," R$ {:,.2f}".format(ult_cotacao),f"{delta}%" )
 
     with col14:
         st.metric(f"Menor cotação do período: "," R$ {:,.2f}".format(menor_cotacao))
@@ -168,6 +186,39 @@ with st.container():
     #Exibindo gráfico de linha para comparação de valores no período
     st.text("Valor de Compra, Cotação no Período e Máximo Cotação no Período")
     st.line_chart(df[["Valor de Compra","Cotação no Período", "Máxima Cotação Período"]])
+
+########################################################################################################
+                    # ----------------- Tabela analítica -----------------
+########################################################################################################
+with st.container():
+    st.subheader("Tabela analítica dos Ativos")
+    if empresa != 'Todas':
+        st.markdown(f"Tabela analítica dos Ativos Filtrado por **Empresa:** {empresa}")
+        tb = minhasacoes[minhasacoes['EMPRESA'] == empresa]
+########################################################################################################
+        st.dataframe(tb, use_container_width= True)
+
+    elif segmento != 'Todos':
+        st.markdown(f"Tabela analítica dos Ativos Filtrado por **Segmento:** {segmento}")
+        tb = minhasacoes[minhasacoes['SEGMENTO'] == segmento]
+        st.dataframe(tb)
+
+    elif subsetor != 'Todos':
+        st.markdown(f"Tabela analítica dos Ativos Filtrado por **Subsetor:** {subsetor}")
+        tb = minhasacoes[minhasacoes['SUBSETOR'] == subsetor]
+        st.dataframe(tb)
+
+    elif setor != 'Todos':
+        st.markdown(f"Tabela analítica dos Ativos Filtrado por **Setor:** {setor}")
+        tb = minhasacoes[minhasacoes['SETORECONOMICO'] == setor]
+        st.dataframe(tb)
+
+    else:
+        st.markdown(f"Tabela analítica de todos os Ativos")
+        tb = minhasacoes
+        st.dataframe(tb)
+
+########################################################################################################
 
 with st.container():
     st.subheader("Sobre os dividendos")
