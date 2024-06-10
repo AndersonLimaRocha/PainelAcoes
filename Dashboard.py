@@ -6,6 +6,8 @@ import datetime as dt
 import streamlit as st
 from datetime import datetime
 import os
+import numpy as np
+import plotly.express as px 
 
 st.set_page_config( page_title="Indicadores de Ações da Bolsa", layout="wide")
 
@@ -21,20 +23,73 @@ file = caminho_atual + file
 
 minhasacoes = pd.read_excel(file, sheet_name='Cotação das Ações')
 
+
+# Função para retornar a ultima cotação da ação
+def retorna_ultima_cotacao_acao(df):
+    latest_quotes = df.loc[df.groupby('ACAO')['DATACOTACAO'].idxmax()]
+    latest_quotes = latest_quotes[['ACAO', 'DATACOTACAO', 'QTDECOTAS', 'VALORFECHAMENTO']].drop_duplicates()
+    latest_quotes['VALORTOTALATUAL'] = latest_quotes['QTDECOTAS'] * latest_quotes['VALORFECHAMENTO']
+    return latest_quotes
+
+# Função para retornar um dataframe agrupado
+def create_dataframe(coluna):
+    df = minhasacoes[[coluna, 'QTDECOTAS', 'VALORCOMPRA', 'ACAO']].drop_duplicates()
+    df['VALORTOTALCOMPRA'] = df['QTDECOTAS'] * df['VALORCOMPRA']
+    df = df.groupby([coluna, 'ACAO']).agg({
+        'QTDECOTAS': np.sum,
+        'VALORTOTALCOMPRA': np.sum
+    }).sort_values(by='VALORTOTALCOMPRA', ascending=False).reset_index()
+    return df
+
+# Função para consolidar o dataframe
+def consolidate_details(df, latest_quotes):
+    df = pd.merge(df, latest_quotes[['ACAO', 'DATACOTACAO', 'VALORTOTALATUAL']], on='ACAO', how='inner', validate="many_to_many")
+    df = df.drop_duplicates().sort_values(by='ACAO').reset_index(drop=True)
+    return df
+
+# Função para agrupar o dataframe
+def group_by(df,coluna):
+    df = df.groupby(coluna).agg({
+        'QTDECOTAS': np.sum,
+        'VALORTOTALCOMPRA': np.sum,
+        'VALORTOTALATUAL': np.sum
+    }).sort_values(by='VALORTOTALCOMPRA', ascending=False).reset_index()
+    return df
+
+# Função para atualizar percentual de rendimento e prejuizo
+def update_performance(df):
+    df['RENDIMENTO(%)'] = ((df['VALORTOTALATUAL'] / df['VALORTOTALCOMPRA'] - 1) * 100).round(2)
+    df['PREJUIZO(%)'] = ((df['VALORTOTALCOMPRA'] / df['VALORTOTALATUAL'] - 1) * 100).round(2)
+    df['RETORNO(%)'] = ((df['VALORTOTALATUAL'] / df['VALORTOTALCOMPRA'] - 1) * 100).round(2)
+    df.loc[df['VALORTOTALATUAL'] < df['VALORTOTALCOMPRA'], 'RENDIMENTO(%)'] = 0
+    df.loc[df['VALORTOTALATUAL'] >= df['VALORTOTALCOMPRA'], 'PREJUIZO(%)'] = 0
+    return df
+
+# Função que centraliza as funções 
+def agupamento(agrupamento, df):
+    coluna = agrupamento
+    ult_cot = retorna_ultima_cotacao_acao(df)
+    dtf = create_dataframe(coluna)
+    dtf = consolidate_details(dtf, ult_cot)
+    dtf = group_by(dtf, coluna)
+    dtf = update_performance(dtf)
+    return dtf
+
+
 lista = ['Todos']
 lista = pd.DataFrame(columns=['Col'], data=lista)
 Setores = minhasacoes[['SETORECONOMICO']].drop_duplicates().reset_index().rename(columns={'SETORECONOMICO':'Col'})
-Setores = pd.concat([lista,Setores]).reset_index(drop=True).drop(columns={'index'})
+Setores = pd.concat([lista,Setores]).reset_index(drop=True)
 lista_setores = list(Setores['Col'])
 
 end_date = dt.datetime.today()
 
-# função para selecionar a quantidade de linhas do dataframe
-def mostra_qntd_linhas(dataframe):
+# **************************************************************************************************
+# sbt = agupamento('SUBSETOR', minhasacoes)
+# sg = agupamento('SEGMENTO', minhasacoes)
+# emp = agupamento('EMPRESA', minhasacoes)
 
-    qntd_linhas = st.sidebar.slider('Selecione a quantidade de linhas que deseja mostrar na tabela', min_value = 1, max_value = len(dataframe), step = 1)
-
-    #st.write(dataframe.head(qntd_linhas).style.format(subset = ['Valor'], formatter="{:.2f}"))
+# **************************************************************************************************
 
 ########################################################################################################
                 # ------------ FILTROS DA COLUNA ESQUERDA DO FRAME ------------
@@ -47,38 +102,38 @@ setor = st.sidebar.selectbox('Selecione o Setor desejado:', options = lista_seto
 
 if setor != 'Todos':
     sub = minhasacoes[['SUBSETOR']][minhasacoes['SETORECONOMICO'] == setor].drop_duplicates().reset_index().rename(columns={'SUBSETOR':'Col'})
-    sub = pd.concat([lista,sub]).reset_index(drop=True).drop(columns={'index'})
+    sub = pd.concat([lista,sub]).reset_index(drop=True)
     lista_subsetores = list(sub['Col'])
     subsetor = st.sidebar.selectbox('Selecione o Sub Setor desejado:', options = lista_subsetores)
 
 else:
     sub = minhasacoes[['SUBSETOR']].drop_duplicates().reset_index().rename(columns={'SUBSETOR':'Col'})
-    sub = pd.concat([lista,sub]).reset_index(drop=True).drop(columns={'index'})
+    sub = pd.concat([lista,sub]).reset_index(drop=True)
     lista_subsetores = list(sub['Col'])
     subsetor = st.sidebar.selectbox('Selecione o Sub Setor desejado:', options = lista_subsetores)
 
 if subsetor != 'Todos':
     seg = minhasacoes[['SEGMENTO']][minhasacoes['SUBSETOR'] == subsetor].drop_duplicates().reset_index().rename(columns={'SEGMENTO':'Col'})
-    seg = pd.concat([lista,seg]).reset_index(drop=True).drop(columns={'index'})
+    seg = pd.concat([lista,seg]).reset_index(drop=True)
     lista_segmentos = list(seg['Col'])
     segmento = st.sidebar.selectbox('Selecione o Segmento desejado:', options = lista_segmentos)
 
 else:
     seg = minhasacoes[['SEGMENTO']].drop_duplicates().reset_index().rename(columns={'SEGMENTO':'Col'})
-    seg = pd.concat([lista,seg]).reset_index(drop=True).drop(columns={'index'})
+    seg = pd.concat([lista,seg]).reset_index(drop=True)
     lista_segmentos = list(seg['Col'])
     segmento = st.sidebar.selectbox('Selecione o Segmento desejado:', options = lista_segmentos)
 
 if segmento != 'Todos':
     emp = minhasacoes[['EMPRESA']][minhasacoes['SEGMENTO'] == segmento].drop_duplicates().reset_index().rename(columns={'EMPRESA':'Col'})
-    emp = pd.concat([lista,emp]).reset_index(drop=True).drop(columns={'index'})
+    emp = pd.concat([lista,emp]).reset_index(drop=True)
     emp['Col'] = emp['Col'].replace('Todos','Todas')
     lista_empresas = list(emp['Col'] )
     empresa = st.sidebar.selectbox('Selecione a Empresa desejada:', options = lista_empresas)
 
 else:
     emp = minhasacoes[['EMPRESA']][minhasacoes['SEGMENTO'] == segmento].drop_duplicates().reset_index().rename(columns={'EMPRESA':'Col'})
-    emp = pd.concat([lista,emp]).reset_index(drop=True).drop(columns={'index'})
+    emp = pd.concat([lista,emp]).reset_index(drop=True)
     emp['Col'] = emp['Col'].replace('Todos','Todas')
     lista_empresas = list(emp['Col'] )
     empresa = st.sidebar.selectbox('Selecione a Empresa desejada:', options = lista_empresas)
@@ -86,6 +141,18 @@ else:
 ########################################################################################################
                 # ------------ FRAME PRINCIPAL CENTRAL ------------
 ########################################################################################################        
+stor = agupamento('SETORECONOMICO', minhasacoes)
+fig=px.bar(stor,
+           title='Setor Econômico',
+           x='VALORTOTALCOMPRA',
+           y='SETORECONOMICO', 
+           orientation='h', 
+           color='RETORNO(%)', 
+           color_continuous_scale = 'RdBu',
+           text='VALORTOTALCOMPRA',
+           text_auto=True)
+fig.update_layout(yaxis=dict(autorange="reversed"))
+st.write(fig)
 
 with st.container():
     st.header("Selecione os filtros abaixo para visualizar as ações")
@@ -141,11 +208,11 @@ df = df.rename(columns={'VALORAJUSTADO':'Cotação no Período','MAIORCOTACAO':'
 
 #4. Criando metricas
 ult_atualizacao =  str(df['DATACOTACAO'].max()).replace(' 00:00:00','') #Data da ultima att
-ult_cotacao = round(df.loc[df.index.max(), "Cotação no Período"], 2) #Pega a última cotacao
+ult_cotacao = df.loc[df.index.max(), "Cotação no Período"] #Pega a última cotacao
 menor_cotacao = round(df["Cotação no Período"].min(), 2) #Pega a menor cotacao do periodo
 maior_cotacao = round(df["Cotação no Período"].max(), 2) #Pega a maior cotacao do periodo
-prim_cotacao = round(df.loc[df.index.min(), "Cotação no Período"],2 ) #Pega a primeira cotacao encontrada
-delta = round(((ult_cotacao- vlpago)/ vlpago)*100,2) #A variacao da cotacao no periodo
+prim_cotacao = df.loc[df.index.min(), "Cotação no Período"] #Pega a primeira cotacao encontrada
+#delta = round(((ult_cotacao - vlpago)/ vlpago)*100,2) #A variacao da cotacao no periodo
 data = df[df["VALORDIVIDENDO"]>0]
 dividendo = data["VALORDIVIDENDO"].mean()
 dividendo_soma = data["VALORDIVIDENDO"].sum()
@@ -169,7 +236,7 @@ with st.container():
         st.metric(f"Qtde de Cotas: ","{:,.0f}".format(qtdct))
 
     with col13:
-        st.metric(f"Ultima Cotação \n {ult_atualizacao} "," R$ {:,.2f}".format(ult_cotacao),f"{delta}%" )
+        st.metric(f"Ultima Cotação \n {ult_atualizacao} "," R$ {:,.2f}".format(ult_cotacao)) #,f"{delta}%" )
 
     with col14:
         st.metric(f"Menor cotação do período: "," R$ {:,.2f}".format(menor_cotacao))
