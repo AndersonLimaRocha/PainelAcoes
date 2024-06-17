@@ -1,14 +1,59 @@
  #1. importar bibliotecas
+try:
+    import pandas as pd
+except ImportError: 
+    import pip
+    pip.main(['install', 'pandas'])
+    import pandas as pd
 
-import pandas as pd
-import yfinance as yf
-import datetime as dt
-import streamlit as st
-from datetime import datetime
-import os
-import numpy as np
-import plotly.express as px 
-import plotly.graph_objects as go
+try:
+    import yfinance as yf
+except ImportError: 
+    import pip
+    pip.main(['install', 'yfinance'])
+    import yfinance as yf
+
+try:
+    import datetime as dt
+except ImportError: 
+    import pip
+    pip.main(['install', 'datetime'])
+    import datetime as dt
+
+try:
+    import streamlit as st
+except ImportError: 
+    import pip
+    pip.main(['install', 'streamlit'])
+    import streamlit as st
+
+try:
+    import os
+except ImportError: 
+    import pip
+    pip.main(['install', 'os'])
+    import os
+
+try:
+    import plotly.express as px
+except ImportError: 
+    import pip
+    pip.main(['install', 'plotly'])
+    import plotly.express as px
+
+try:
+    import numpy as np
+except ImportError: 
+    import pip
+    pip.main(['install', 'numpy'])
+    import numpy as np
+
+try:
+    import plotly.graph_objects as go
+except ImportError: 
+    import pip
+    pip.main(['install', 'plotly'])
+    import plotly.graph_objects as go
 
 st.set_page_config( page_title="Indicadores de Ações da Bolsa", layout="wide")
 
