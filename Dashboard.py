@@ -53,7 +53,7 @@ try:
 except ImportError: 
     import pip
     pip.main(['install', 'plotly'])
-    import plotly.graph_objects as go
+    
 
 st.set_page_config( page_title="Indicadores de Ações da Bolsa", layout="wide")
 
