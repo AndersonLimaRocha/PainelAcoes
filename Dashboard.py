@@ -4,7 +4,6 @@ import pandas as pd
 import yfinance as yf
 import datetime as dt
 import streamlit as st
-from streamlit_modal import Modal
 from datetime import datetime
 import os
 import numpy as np
